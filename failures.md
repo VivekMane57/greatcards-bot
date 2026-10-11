@@ -290,4 +290,7 @@ Q10: "compare amazon pay icici with flipkart axis for 20k monthly online spend".
 - F12: the number check cannot see whether a converted figure is labelled.
 - F18: check the restricted flags on about 10 more cards.
 - Q2, Q3, Q5 answers not checked against real card terms (fuel, insurance, school fees).
+- The joining fee note (fee_notes) states a fixed claim about the server ("does not subtract the joining fee", tested on 3 calls on 10 Oct 2026). It is a workaround: if the MCP engineers fix F8, the note must be removed or it becomes false.
+- fee_notes, availability_notes and the exclusion/label notes fall back to the top recommended card when the reply names no card from the results. That is a guess, so a note can sit on the wrong card in that case.
+- Postchecks edge cases fixed on 12 Oct 2026 and covered by unit tests only (first-number parsing of rupee strings, "Rs 0 (waived)" counted as no fee); not re-run live.
 - Most questions were run 1 to 3 times; a pass is evidence, not proof.

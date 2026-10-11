@@ -70,7 +70,11 @@ def _name_mentioned(name: str, alias: str, low: str) -> bool:
 
 def _has_fee(value) -> bool:
     v = str(value or "").strip().lower()
-    return bool(v) and not v.startswith(("free", "nil", "0", "₹0", "none"))
+    for prefix in ("rs.", "rs", "inr", "\u20b9"):   # drop a currency prefix, so "Rs 0 (waived)" counts as no fee
+        if v.startswith(prefix):
+            v = v[len(prefix):].strip()
+            break
+    return bool(v) and not v.startswith(("free", "nil", "0", "none"))
 
 
 def fee_notes(reply: str, trace: list[dict]) -> list[str]:
@@ -174,9 +178,10 @@ def exclusion_notes(reply: str, trace: list[dict]) -> list[str]:
 
 
 def _rupees(text) -> float | None:
-    digits = "".join(ch for ch in str(text or "") if ch.isdigit() or ch == ".")
+    """First rupee number in the text only. "Rs 9,000 (Rs 750/month)" gives 9000, not 9000750."""
+    m = re.search(r"\d[\d,]*(?:\.\d+)?", str(text or ""))
     try:
-        return float(digits) if digits else None
+        return float(m.group(0).replace(",", "")) if m else None
     except ValueError:
         return None
 

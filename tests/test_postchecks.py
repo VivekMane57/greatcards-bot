@@ -1,6 +1,6 @@
 import sys, pathlib, json
 sys.path.insert(0, str(pathlib.Path(__file__).parent.parent))
-from postchecks import fee_notes, availability_notes, cards_to_check, exclusion_notes, label_notes, spend_notes
+from postchecks import _has_fee, _rupees, fee_notes, availability_notes, cards_to_check, exclusion_notes, label_notes, spend_notes
 
 REC = json.dumps({"recommendations": [
     {"rank": 1, "card_name": "HDFC MILLENIA", "net_annual_savings": "₹9,000", "joining_fee": "₹1,180 (incl. GST)",
@@ -85,6 +85,18 @@ def test_spend_note_when_compare_only():
     assert spend_notes("A comparison based on your Rs 20,000 monthly online spending.", tr)
     assert spend_notes("A comparison of the two cards.", tr) == []
     assert spend_notes("based on your spending", tr + [{"name": "recommend_cards", "args": {}, "result": "{}", "is_error": False}]) == []
+
+
+def test_rupees_takes_first_number_only():
+    assert _rupees("\u20b99,000 (\u20b9750/month)") == 9000
+    assert _rupees("\u20b91,13,186.157") == 113186.157
+    assert _rupees("") is None
+
+
+def test_has_fee_edge_cases():
+    assert _has_fee("\u20b91,180 (incl. GST)") is True
+    assert _has_fee("Free") is False and _has_fee("\u20b90") is False and _has_fee("Rs 0 (waived)") is False
+    assert _has_fee("Rs 590") is True
 
 
 if __name__ == "__main__":
