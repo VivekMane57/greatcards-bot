@@ -33,6 +33,7 @@ Other switches: `PROMPT=guarded|baseline`, `STRICT_AMOUNTS=1|0`, `USE_ADVISOR_CO
 | `probe.py` | Calls the MCP directly, without an LLM, to collect raw evidence |
 | `questions.json`, `run_questions.py` | The test questions (20 plus one reworded, Q21) and the runner |
 | `results/*.md` | Raw before/after outputs of every run |
+| `evidence/F1.md` to `F19.md` | Full evidence per finding: exact question, full answer and raw tool output, copied from `results/` (built by `python make_evidence.py`) |
 | `failures.md` | Every wrong, made-up, missing or misleading answer, with cause and evidence |
 | `docs/MCP_SPEC.md` | Fix spec for the top MCP issue (joining fee), with worked numbers |
 | `docs/PRODUCT_NOTE.md` | One-page plain-language note for the product owner |
