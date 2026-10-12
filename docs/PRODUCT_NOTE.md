@@ -5,7 +5,7 @@
 ## What users would get wrong today
 
 - **Joining fee ignored.** The "net annual savings" figure does not subtract the joining fee, although the tool description says it does. In one test a card with a ₹1,180 joining fee showed ₹9,000, tied with a free card at ₹9,000, and was listed first.
-- **Cards they cannot get.** The bot recommended cards marked existing-customer-only or invite-only (for example SBI Cashback and Axis Magnus Burgundy) without saying so. That flag is only visible in the card details, not in the recommendation.
+- **Cards they cannot get.** The bot recommended cards marked existing-customer-only or invite-only (for example Kotak Solitaire and HDFC Millennia) and named them first. A code note then says the card is restricted, but only after the recommendation. That flag is only visible in the card details, not in the recommendation.
 - **Spend that earns nothing.** Fuel and school fees were shown as earning rewards, though the card excludes them.
 - **Confusing numbers.** A monthly figure was labelled "annual". A marketing line like "save up to ₹60,000" showed up as if it were the user's savings, and the same number appears on different cards.
 
