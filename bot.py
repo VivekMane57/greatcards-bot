@@ -38,8 +38,9 @@ MAX_STEPS = 8
 
 # The 5 tools the assignment documents. The server lists more (whatsapp_*, run_api_diagnostics,
 # generate_content_brief, ...) that are not meant for an end-user bot.
-DOCUMENTED_TOOLS = ["recommend_cards", "get_card_details", "list_cards", "compare_cards", "check_eligibility"]
-# ALLOWED_TOOLS unset  -> guarded prompt: the 5 documented tools; baseline prompt: every tool the server lists
+DOCUMENTED_TOOLS = ["recommend_cards", "get_card_details", "list_cards", "compare_cards", "check_eligibility",
+                    "whatsapp_resolve_card_or_category"]  # 5 documented tools + the card-name resolver (sixth tool, on purpose: prompt rules 8/8b use it)
+# ALLOWED_TOOLS unset  -> guarded prompt: the 5 documented tools plus the resolver; baseline prompt: every tool the server lists
 # ALLOWED_TOOLS=a,b,c  -> exactly those      ALLOWED_TOOLS=ALL -> everything, for any prompt
 _allowed_env = os.getenv("ALLOWED_TOOLS", "").strip()
 

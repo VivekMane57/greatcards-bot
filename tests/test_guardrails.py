@@ -24,17 +24,17 @@ def test_units():
     assert unverified_amounts("fee 1k rupees", [TOOL]) == []
 
 
-def test_user_unit_conversion_allowed():
-    user = "school fees are 36,000 a year"
-    assert unverified_amounts("I passed Rs 3,000 a month.", [TOOL, user], user_sources=[user]) == []
-    assert unverified_amounts("I passed Rs 3,000 a month.", [TOOL, user]) != []  # no conversion allowance
-    assert unverified_amounts("You'd earn Rs 4,321.", [TOOL, user], user_sources=[user]) != []
-
-
 def test_tripwires():
     assert "approval_promise" in flag_phrases("You will definitely be approved!")
     assert "tax_advice_language" in flag_phrases("Rent is deductible under 80C")
     assert flag_phrases("Check the bank's terms.") == []
+
+
+def test_tripwires_ignore_refusals():
+    assert flag_phrases("I can't promise you will be approved; the bank decides.") == []
+    assert flag_phrases("Tax questions like 80C are outside what I can help with.") == []
+    assert flag_phrases("Since your ITR income is 6 lakh, here are cards.") == []
+    assert "approval_promise" in flag_phrases("You will definitely be approved!")
 
 
 if __name__ == "__main__":

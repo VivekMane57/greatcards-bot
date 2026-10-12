@@ -1,4 +1,4 @@
-"""Builds evidence/F1.md ... F19.md from the raw result files in results/.
+"""Builds evidence/F1.md ... F22.md from the raw result files in results/.
 
 Each evidence file holds, for one finding, the exact question, the bot's full answer and every raw tool call
 (arguments and tool output) copied unchanged from results/*.md. Only one thing is shortened: the big
@@ -40,6 +40,9 @@ MAP = {
     17: ("Q2 fuel claim vs exclusions", [("after_v3_recommend.md", 2, None), ("after_v4.md", 2, None)]),
     18: ("Restricted flags on top picks", [("after_v3_recommend.md", 1, None), ("after_v3_recommend.md", 2, None)]),
     19: ("Q10 'based on your spend' with compare_cards only", [("after_v4_q10.md", 10, None), ("after_v5_q10.md", 10, None)]),
+    20: ("Q5 yearly school fee sent into a monthly field", [("before.md", 5, None), ("after.md", 5, None)]),
+    21: ("Q12 'based on your CIBIL score'", [("before.md", 12, None), ("after_v3.md", 12, None)]),
+    22: ("Q2 groceries assumed to be online", [("after.md", 2, None), ("after_v3_recommend.md", 2, None)]),
 }
 
 ADVISOR = re.compile(r"<details><summary>get_advisor_context.*?</details>", re.S)

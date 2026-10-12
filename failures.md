@@ -1,6 +1,6 @@
 # failures.md
 
-Every answer I found wrong, made up, missing or misleading while testing a chatbot built on the Great.cards MCP server (great-cards v1.6.1). Format asked for: question, answer, what is wrong, cause (model, MCP or data), evidence. The table gives that for all 19 findings; the details follow below it, and run-by-run history is at the end.
+Every answer I found wrong, made up, missing or misleading while testing a chatbot built on the Great.cards MCP server (great-cards v1.6.1). Format asked for: question, answer, what is wrong, cause (model, MCP or data), evidence. The table gives that for all 22 findings; the details follow below it, and run-by-run history is at the end.
 
 Setup: gpt-4o-mini on Azure OpenAI, 21 questions (the 20 asked for plus Q21, a reworded Q18), 1 to 3 runs per question, run on 10 and 11 October 2026.
 
@@ -32,8 +32,11 @@ Setup: gpt-4o-mini on Azure OpenAI, 21 questions (the 20 asked for plus Q21, a r
 | ⚠️ **F17** | Q2 | Everyday ask | "significant cashback on your grocery and fuel spending" | Card details list fuel under rewards exclusions | MODEL (MCP secondary) | [evidence/F17.md](evidence/F17.md): after_v3_recommend.md, after_v4.md | 🟡 Code note since v4 (2 of 2) |
 | ⚠️ **F18** | Q1, Q2, Q11 | Everyday ask | Top picks marked existing-customer-only or invite-only | recommend_cards ranks cards most users cannot get; flags may be too wide | MCP, possibly DATA | [evidence/F18.md](evidence/F18.md): after_v3_recommend.md | 🔴 Open, not checked on more cards |
 | **F19** | Q10 | Loose card names | "based on your Rs 20,000 spending" after compare_cards only | No spend was used | MODEL | [evidence/F19.md](evidence/F19.md): after_v4_q10.md, after_v5_q10.md | 🟡 Code note since v5, sentence remains |
+| **F20** | Q5 | Mixed monthly/annual | Sent school_fees 36000 (a yearly amount) into a monthly field | Tool saw 4.32 lakh a year instead of 36,000 (12 times too much); the answer text still said "36,000 annually" | MODEL (MCP naming secondary) | [evidence/F20.md](evidence/F20.md): before.md, after.md | 🟢 Guarded run sent 3000 (1 run) |
+| **F21** | Q12 | Eligibility | "...based on your earnings and CIBIL score" | check_eligibility has no CIBIL input (call had only pincode, income, employment); pincode 411001 was also invented | MODEL | [evidence/F21.md](evidence/F21.md): before.md, after_v3.md | 🟢 Guarded bot asks for the pincode, no tool call (9 of 9) |
+| **F22** | Q2 | Everyday ask | Sent grocery_spends_online 20000 without asking; "Rs 12,000 ... primarily from grocery spending" | User said only "groceries"; the card's details give 1% on offline spends, so offline groceries earn far less | MODEL | [evidence/F22.md](evidence/F22.md): after.md, after_v3_recommend.md | 🔴 Open, not re-tested |
 
-Evidence: each finding has its own file in `evidence/` (F1.md to F19.md) with the exact question, the bot's full answer and every raw tool call with the tool's output, copied unchanged from `results/`. They are built by `python make_evidence.py`. The only thing shortened is the repeated get_advisor_context dump.
+Evidence: each finding has its own file in `evidence/` (F1.md to F22.md) with the exact question, the bot's full answer and every raw tool call with the tool's output, copied unchanged from `results/`. They are built by `python make_evidence.py`. The only thing shortened is the repeated get_advisor_context dump.
 
 Legend: 🟢 fixed or passes now, 🟡 partly fixed or only a code note, 🔴 still open. ⚠️ = the three findings I would fix first (F8 joining fee, F18 restricted cards ranked first, F17 benefit the card excludes).
 
@@ -221,6 +224,27 @@ What is wrong: only compare_cards ran. It takes only card names, no spend, and r
 Cause: MODEL. TESTED (tool calls in results/after_v4_q10.md: resolve x2, compare_cards, no recommend_cards). Prompt rule 8b was ignored 2 of 2.
 Status: partly fixed in code (v5, postchecks.spend_notes). A note is added after the answer in 2 of 2 runs (results/after_v5_q10.md). The wrong sentence is still written by the model; the note corrects it. Only 2 runs.
 
+### F20. Q5 yearly school fee sent into a monthly field (BEFORE)
+Question: "My total spend is around 50k a month, mostly online shopping, plus 36,000 a year for school fees. Suggest a card."
+Answer: "based on your spending of Rs 50,000 a month on online shopping and Rs 36,000 annually on school fees". The call was recommend_cards {"other_online_spends": 50000, "school_fees": 36000, "top_n": 5}.
+What is wrong: the tool description says "school_fees -> Monthly education fees", so the tool saw 4,32,000 a year, 12 times too much. Correct value to send: 3000. The answer text says annual while the call says monthly.
+Cause: MODEL (wrote the wrong number). MCP secondary: some fields are monthly with no suffix (school_fees, rent) and others yearly with no suffix (life_insurance). TESTED (results/before.md Q5; tool description in logs/tools.json).
+Status: the guarded run sent 3000 for the same question (results/after.md Q5), 1 run. Effect on the ranking not measured.
+
+### F21. Q12 "based on your CIBIL score" (BEFORE)
+Question: "I earn 30k a month in Pune and have a CIBIL of 740. Which cards can I get?"
+Answer: "Here are some credit cards you can apply for based on your earnings and CIBIL score".
+What is wrong: check_eligibility takes only pincode, annual income and employment status, and the call used exactly those (pincode 411001 was made up, see F3). No score was used, so the sentence claims a basis that did not exist.
+Cause: MODEL (MCP secondary: the tool is described as telling users which cards they can apply for, but cannot use a score). TESTED (results/before.md Q12 call arguments).
+Status: in the guarded setup the bot asks for the pincode and makes no call (results/after_v3.md, 9 of 9 runs for Q12 to Q14), so this claim is not made. I did not re-test what happens once a real pincode is given.
+
+### F22. Q2 "groceries" assumed to be online groceries
+Question: "I spend about 20,000 a month on groceries and 5,000 on fuel. Best cashback card for me?"
+Answer: "SBI Cashback ... Annual Rewards Value: Rs 12,000, primarily from grocery spending". The call was recommend_cards {"grocery_spends_online": 20000, "fuel": 5000}, with no question to the user.
+What is wrong: the user did not say online. The SBI Cashback details describe 1% on offline spends (capped Rs 2,000 a cycle) against a higher online rate, so if the groceries are bought in a shop the figure is far too high. The tool has both keys (grocery_spends_online and offline_grocery); the model chose one without telling the user.
+Cause: MODEL (undisclosed assumption). TESTED for the arguments (results/after.md Q2, after_v3_recommend.md Q2); the offline rate is read from the card's own text, not checked on the bank's page (NOT CHECKED).
+Status: open. The v4 notes about fuel exclusions do not cover this.
+
 ## Run history (what changed, what each run showed)
 ### Repeat runs (AFTER v2, 2 runs each, results/after_v2_repeat.md)
 One run per question can mislead, so I ran 6 questions twice more with the v2 setup.
@@ -279,7 +303,7 @@ What is still wrong:
 ### v4 Q10 run (results/after_v4_q10.md: 2 runs)
 
 Q10: "compare amazon pay icici with flipkart axis for 20k monthly online spend".
-- Both names resolved correctly through the resolver tool (icici-amazon-pay-credit-card, axis-flipkart-credit-card), 2/2. Fees, ratings, eligibility and exclusions in the answers match the compare_cards output. TESTED.
+- Both names resolved correctly through the resolver tool (icici-amazon-pay-credit-card, axis-flipkart-credit-card), 2/2. Fees, ratings and eligibility in the answers match the compare_cards output. TESTED. One wording error found on re-check (suggested by an outside review, confirmed in the raw file): run 1 lists "Fuel Offshore" among the Amazon Pay ICICI exclusions, while the tool output says "Fuel Spends". So the exclusions are not all copied exactly. Cause: MODEL.
 - "User Rating" was used, not "Approval Rating", 2/2 (rule g). No savings figure was shown, so no marketing figure was shown as savings.
 - Still wrong: both answers say "based on your Rs 20,000 monthly online spending". Only compare_cards ran; it has no spend input and recommend_cards was never called, so nothing was calculated for that spend. Prompt rule 8b was ignored 2/2 (same pattern as the joining-fee rule). Cause: MODEL. TESTED (tool calls in the file: resolve x2, compare_cards, no recommend_cards).
 - Run 1 ends with "Axis Flipkart may offer better overall value" and run 2 says Amazon Pay ICICI "has more exclusions". Neither is backed by the tool output (the lists are about the same length). Cause: MODEL. Not fixed.
@@ -293,4 +317,6 @@ Q10: "compare amazon pay icici with flipkart axis for 20k monthly online spend".
 - The joining fee note (fee_notes) states a fixed claim about the server ("does not subtract the joining fee", tested on 3 calls on 10 Oct 2026). It is a workaround: if the MCP engineers fix F8, the note must be removed or it becomes false.
 - fee_notes, availability_notes and the exclusion/label notes fall back to the top recommended card when the reply names no card from the results. That is a guess, so a note can sit on the wrong card in that case.
 - Postchecks edge cases fixed on 12 Oct 2026 and covered by unit tests only (first-number parsing of rupee strings, "Rs 0 (waived)" counted as no fee); not re-run live.
+- Config and tripwire fixes made on 12 Oct 2026 after an outside review, covered by unit tests only and not re-run live: the card-name resolver is now in the default guarded tool list (before, the guarded setup needed ALLOWED_TOOLS to get it; my live runs after v1 set it), tripwires ignore refusals and no longer match the word ITR, and app.py restores the chat history when a turn fails.
+- A figure moved to the wrong card passes the amount check (it only checks that the number appears in some tool result); seen in Q10 repeat run 2. Prompt rule 8b targets it, no code enforces it.
 - Most questions were run 1 to 3 times; a pass is evidence, not proof.

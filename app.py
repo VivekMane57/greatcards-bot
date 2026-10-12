@@ -35,10 +35,12 @@ if prompt := st.chat_input("Describe your spending…"):
         st.markdown(prompt)
     with st.chat_message("assistant"):
         with st.spinner("Checking cards…"):
+            snapshot = list(st.session_state.history)   # a failed turn must not leave half-written history
             try:
                 res = bot.ask_sync(st.session_state.history, prompt)
                 st.session_state.view.append({"role": "assistant", "text": res.reply,
                                               "warnings": res.warnings, "tools": res.tool_calls})
             except Exception as e:
-                st.session_state.view.append({"role": "assistant", "text": f"Error: {bot.explain(e)}"})
+                st.session_state.history[:] = snapshot
+                st.session_state.view.append({"role": "assistant", "text": f"Error: {e}"})
     st.rerun()

@@ -79,13 +79,27 @@ _APPROVAL = re.compile(
     r"you will (?:definitely |surely )?get (?:this|the|a) card)", re.I)
 _TAX = re.compile(
     r"(80\s*c\b|80\s*d\b|income tax|tax[- ]sav|tax deduct|deductible|tax benefit|"
-    r"reduce your tax|\bITR\b|\bGST (?:input|credit|refund))", re.I)
+    r"reduce your tax|\bGST (?:input|credit|refund))", re.I)
+
+
+_REFUSAL = re.compile(r"(can't|cannot|can not|won't|will not|unable|not able|not allowed|never|no one can|outside what i|"
+                      r"i'm sorry|i am sorry|not guarantee|no guarantee|couldn't|isn't allowed)", re.I)
+
+
+def _real_hit(pattern, text: str) -> bool:
+    """A tripwire only counts when the match is NOT inside a refusal such as "I can't promise you will be approved"
+    or "tax questions like 80C are outside what I can help with" (checked in the 80 characters around the match)."""
+    for m in pattern.finditer(text or ""):
+        around = text[max(0, m.start() - 80): m.end() + 80]
+        if not _REFUSAL.search(around):
+            return True
+    return False
 
 
 def flag_phrases(reply: str) -> list[str]:
     flags = []
-    if _APPROVAL.search(reply or ""):
+    if _real_hit(_APPROVAL, reply):
         flags.append("approval_promise")
-    if _TAX.search(reply or ""):
+    if _real_hit(_TAX, reply):
         flags.append("tax_advice_language")
     return flags
