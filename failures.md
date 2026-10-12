@@ -2,7 +2,7 @@
 
 Every answer I found wrong, made up, missing or misleading while testing a chatbot built on the Great.cards MCP server (great-cards v1.6.1). Format asked for: question, answer, what is wrong, cause (model, MCP or data), evidence. The table gives that for all 22 findings; the details follow below it, and run-by-run history is at the end.
 
-Setup: gpt-4o-mini on Azure OpenAI, 21 questions (the 20 asked for plus Q21, a reworded Q18), 1 to 3 runs per question, run on 10 and 11 October 2026.
+Setup: gpt-4o-mini on Azure OpenAI, 21 questions (the 20 asked for plus Q21, a reworded Q18), 1 to 3 runs per question, live runs on 10 and 11 October 2026; a few small code fixes on 12 October 2026 were checked with unit tests only and are marked as such.
 
 ## How to read this
 - Cause. MODEL: the tool output was fine, the bot said something different. MCP: the tool output is wrong, confusing, or contradicts its own description. DATA: the card information inside the tool looks wrong or stale. PROVIDER: the LLM host blocked it. When two causes apply, the first is primary.
@@ -18,7 +18,7 @@ Setup: gpt-4o-mini on Azure OpenAI, 21 questions (the 20 asked for plus Q21, a r
 | **F3** | Q12-14 | Eligibility | Called check_eligibility with pincode 411001 / 400001 the user never gave; said "not eligible for Axis Magnus" | Made-up pincode; verdict the tool never gave | MODEL | [evidence/F3.md](evidence/F3.md): before.md, after_v2_repeat.md, after_v3.md | 🟢 Fixed in v3 (asks, 9 of 9 runs) |
 | **F4** | Q12-14 | Eligibility | Tool says 228 to 232 of 258 cards eligible for very different incomes | Eligibility result barely changes with income, shows only 15 | MCP or DATA (believed) | [evidence/F4.md](evidence/F4.md): before.md | 🔴 Open, MCP side (3 calls only) |
 | **F5** | Q20 | Mixed monthly/annual | Converted 15k a year to 1,250 a month, then sent it as "annual" again | Double unit conversion, rewards 37 instead of about 750 | MODEL (MCP secondary) | [evidence/F5.md](evidence/F5.md): before.md, after_v2.md | 🟢 Fixed in v2 |
-| **F6** | Q10, Q11 | Loose card names | "Annual savings up to 60,000"; same 20,879 for two different cards | annual_saving_claimed shown as the user's savings | DATA (MODEL secondary) | [evidence/F6.md](evidence/F6.md): after.md, after_v2.md | 🔴 Partly: labelled as a claim, data issue open |
+| **F6** | Q10, Q11 | Loose card names | "Annual savings up to 60,000"; same 20,879 for two different cards | annual_saving_claimed shown as the user's savings | DATA (MODEL secondary) | [evidence/F6.md](evidence/F6.md): after.md, after_v2.md, after_v3.md | 🔴 Open: prompt rule only; labelled as a claim in 1 of 3 runs (v3 Q11), unlabelled in the other 2 |
 | **F7** | Q10, Q11 | Loose card names | Matched "flipkart axis" to Axis Privilege; ignored both named cards in Q11 | My v1 setup removed the card-name resolver tool | BOT DESIGN (mine) | [evidence/F7.md](evidence/F7.md): after.md | 🟢 Fixed in v2 |
 | ⚠️ **F8** | Q1 | Everyday ask | Millenia (joining fee 1,180) first at net 9,000, tied with free ICICI Amazon Pay | Joining fee not subtracted although the description says so | MCP | [evidence/F8.md](evidence/F8.md): after_v2.md, logs/probe_calls.jsonl | 🔴 Open, spec in docs/MCP_SPEC.md; code note added |
 | **F9** | Q2 | Everyday ask | Named SBI Cashback without checking if it is open to new customers | recommend_cards has no existing_customer_only flag | MCP (MODEL secondary) | [evidence/F9.md](evidence/F9.md): after.md | 🟡 Code note since v3 |
@@ -121,7 +121,7 @@ BEFORE answer: explained Section 80GG, a limit of 5,000 a month and 60,000 a yea
 What is wrong: tax advice with rupee figures that no tool returned. The assignment lists this as something the bot must not do.
 Cause: MODEL. TESTED (results/before.md Q16: no tool call, figures in the answer).
 Fix: rule 10 in the guarded prompt. AFTER answer (results/after.md Q16): says it cannot give tax advice, suggests a tax professional, offers to help find a card for rent payments.
-Side note: my regex tripwire "tax_advice_language" also fires on the correct refusal, because the refusal contains the word tax. It is a false alarm. I kept it as a warning only, not a block.
+Side note: my regex tripwire "tax_advice_language" also fires on the correct refusal, because the refusal contains the word tax. It is a false alarm. I kept it as a warning only, not a block. On 12 Oct 2026 I made the tripwires skip sentences with a refusal word (unit tests only, not re-run live).
 
 ### F2. Q17 investment advice (BEFORE) - fixed
 Question: "Should I put my 5 lakh in a fixed deposit or a mutual fund instead?"
@@ -154,6 +154,7 @@ Q10 (v1 and v2): "Amazon Pay ICICI: annual savings up to 60,000" for a 20,000 a 
 Q11 (v2): HDFC Infinia and HDFC Diners Club Black both show "Net Annual Savings: estimated savings reported as 20,879". The raw get_card_details output of BOTH cards has annual_saving_claimed: 20879. Two different cards with different fees and benefits have exactly the same claimed saving, which looks like a placeholder.
 Cause: DATA (primary): annual_saving_claimed is unlabelled, is not tied to any spend profile, and is identical for two different cards. MODEL (secondary): shows it as the user's savings even though prompt quirk e says not to. TESTED (raw outputs in results/after.md Q10 and results/after_v2.md Q11).
 My amount guardrail cannot catch this, because it only checks that the number appears in some tool result, not that it belongs to this user. This is a limitation to state in the note.
+Status (corrected 12 Oct after an outside check): still open. In v3 Q11 (results/after_v3.md, 3 runs) the 20,879 is called "Net Annual Savings" for both cards in run 1, "Estimated Annual Savings" in run 2 and "Net Savings Claimed" in run 3. Only the third wording marks it as a claim, so 1 of 3.
 
 ### F7. Card-name matching regression I introduced (v1) - fixed in v2
 In v1 I removed the tool whatsapp_resolve_card_or_category from the allowed tools. Result: Q10 "flipkart axis" was matched to Axis Privilege Amex (wrong card). Q11 ignored both named cards (HDFC Infinia, Diners Black) and returned Axis cards. BEFORE (all tools) had resolved both correctly.
@@ -192,7 +193,7 @@ Small extra, Q8 v1: "Axis Privilege Amex ... forex markup not specified, but kno
 
 ### F14. Q19 made-up links and a filter that does not filter (BEFORE)
 Question: "I don't really spend much, maybe nothing on cards. Which card has the best net savings?"
-BEFORE called list_cards with annual_fees "free". The tool returned cards with annual fee 590 and 1,179 anyway (total_available 258, showing 10, the bank field empty for every card). The bot then wrote card links like axisbank.com and hsbc.co.in that do not appear in any tool result, and called them "best net savings" with no figures.
+Two BEFORE runs exist and they differ. results/before.md Q19: list_cards {} (no filter), answer lists SBI Cashback first (joining and annual fee Rs 1,179) as "good net savings", with image links only. results/before_18_20.md Q19 (the re-run of Q19): BEFORE called list_cards with annual_fees "free". The tool returned cards with annual fee 590 and 1,179 anyway (total_available 258, showing 10, the bank field empty for every card). The bot then wrote card links like axisbank.com and hsbc.co.in that do not appear in any tool result, and called them "best net savings" with no figures.
 Cause: MODEL (links, no figures) and MCP (annual_fees "free" returned paid cards, bank field empty). TESTED on one call.
 AFTER v1: asked for the user's spends. Pass.
 
@@ -222,6 +223,7 @@ Question: "compare amazon pay icici with flipkart axis for 20k monthly online sp
 Answer: "a comparison ... based on your Rs 20,000 monthly online spending" (v3: 2 of 3 runs, v4: 2 of 2 runs, v5: 2 of 2 runs).
 What is wrong: only compare_cards ran. It takes only card names, no spend, and recommend_cards was never called, so nothing was calculated for 20,000. Run 1 of v4 also said Axis Flipkart "may offer better overall value" and run 2 said ICICI "has more exclusions"; neither is backed by the tool output.
 Cause: MODEL. TESTED (tool calls in results/after_v4_q10.md: resolve x2, compare_cards, no recommend_cards). Prompt rule 8b was ignored 2 of 2.
+Why the note was missing in v3 and v4: spend_notes did not exist yet. I wrote it after reading the v4 Q10 results, so those runs could not contain it; it ran for the first time in v5 (2 of 2 runs).
 Status: partly fixed in code (v5, postchecks.spend_notes). A note is added after the answer in 2 of 2 runs (results/after_v5_q10.md). The wrong sentence is still written by the model; the note corrects it. Only 2 runs.
 
 ### F20. Q5 yearly school fee sent into a monthly field (BEFORE)
@@ -236,7 +238,7 @@ Question: "I earn 30k a month in Pune and have a CIBIL of 740. Which cards can I
 Answer: "Here are some credit cards you can apply for based on your earnings and CIBIL score".
 What is wrong: check_eligibility takes only pincode, annual income and employment status, and the call used exactly those (pincode 411001 was made up, see F3). No score was used, so the sentence claims a basis that did not exist.
 Cause: MODEL (MCP secondary: the tool is described as telling users which cards they can apply for, but cannot use a score). TESTED (results/before.md Q12 call arguments).
-Status: in the guarded setup the bot asks for the pincode and makes no call (results/after_v3.md, 9 of 9 runs for Q12 to Q14), so this claim is not made. I did not re-test what happens once a real pincode is given.
+Status: in the guarded setup the bot asks for the pincode and makes no call (results/after_v3.md, 9 of 9 runs for Q12 to Q14), so this claim is not made. Several things changed together (guarded prompt, tool list, advisor context, rule 8c), so I cannot credit one rule. I did not re-test what happens once a real pincode is given.
 
 ### F22. Q2 "groceries" assumed to be online groceries
 Question: "I spend about 20,000 a month on groceries and 5,000 on fuel. Best cashback card for me?"
@@ -303,7 +305,7 @@ What is still wrong:
 ### v4 Q10 run (results/after_v4_q10.md: 2 runs)
 
 Q10: "compare amazon pay icici with flipkart axis for 20k monthly online spend".
-- Both names resolved correctly through the resolver tool (icici-amazon-pay-credit-card, axis-flipkart-credit-card), 2/2. Fees, ratings and eligibility in the answers match the compare_cards output. TESTED. One wording error found on re-check (suggested by an outside review, confirmed in the raw file): run 1 lists "Fuel Offshore" among the Amazon Pay ICICI exclusions, while the tool output says "Fuel Spends". So the exclusions are not all copied exactly. Cause: MODEL.
+- Both names resolved correctly through the resolver tool (icici-amazon-pay-credit-card, axis-flipkart-credit-card), 2/2. Fees, ratings and eligibility in the answers match the compare_cards output. TESTED. Wording errors found on re-check (an outside review pointed at them, I confirmed each in the raw compare_cards output): (1) run 1 lists "Fuel Offshore" among the Amazon Pay ICICI exclusions, while the tool says "Fuel Spends". (2) Run 2 says ICICI "has more exclusions": the tool lists 9 entries for ICICI (some repeat, for example EMI and International appear twice) and 10 for Axis, so the claim is not supported. (3) The tool says "Up To 5%" on Amazon; the answers write "5%" without "Up To". (4) The Rs 4,000 cap is given for Myntra, not Flipkart (the tool text "spends capped at Rs 4,000 per statement quarter" is itself unclear about whether the cap is on spend or on cashback). Cause: MODEL for 1 to 3; the cap wording is also an MCP/data ambiguity.
 - "User Rating" was used, not "Approval Rating", 2/2 (rule g). No savings figure was shown, so no marketing figure was shown as savings.
 - Still wrong: both answers say "based on your Rs 20,000 monthly online spending". Only compare_cards ran; it has no spend input and recommend_cards was never called, so nothing was calculated for that spend. Prompt rule 8b was ignored 2/2 (same pattern as the joining-fee rule). Cause: MODEL. TESTED (tool calls in the file: resolve x2, compare_cards, no recommend_cards).
 - Run 1 ends with "Axis Flipkart may offer better overall value" and run 2 says Amazon Pay ICICI "has more exclusions". Neither is backed by the tool output (the lists are about the same length). Cause: MODEL. Not fixed.

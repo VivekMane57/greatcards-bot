@@ -55,7 +55,7 @@ python -m pytest tests            # or: python tests/test_guardrails.py && pytho
 ## Guardrails
 Prompt level: see `GUARDED_PROMPT` in `prompts.py`. In my runs gpt-4o-mini ignored some prompt rules, so the important ones are also in code:
 1. No rupee figure the tools did not return. Every amount in the reply is checked against tool output and the user's own text. One automatic rewrite, then a visible warning. A user's figure x12 or /12 is allowed, so an unlabelled conversion can pass.
-2. No approval promise, no tax advice: prompt rules plus regex tripwires that warn. The tax tripwire also fires on a correct refusal (known false alarm).
+2. No approval promise, no tax advice: prompt rules plus regex tripwires that warn. Sentences with a refusal word ("can't", "outside what I can help with") are skipped, so a correct refusal is not flagged (fixed on 12 Oct; this was a false alarm in my earlier runs).
 3. Notes added by code from tool data: joining fee not subtracted by the tool, card marked existing-customer-only or invite-only, rewards exclusions that match the user's spend, per-month label.
 
 ## Known limits

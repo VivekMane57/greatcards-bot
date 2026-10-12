@@ -1,11 +1,11 @@
 # MCP fix spec: recommend_cards does not subtract the joining fee, but its description says it does
 
-Tool: `recommend_cards` (server version 1.6.1). Evidence: raw calls logged 2026-10-10 23:37 to 23:50 IST (logs/probe_calls.jsonl, calls #3, #7 and #9 of that file). Status: tested on 3 calls / 25 ranked cards.
+Tool: `recommend_cards` (server version 1.6.1). Evidence: raw calls logged 2026-10-10 23:37 to 23:50 IST (logs/probe_calls.jsonl, calls #3, #7 and #9 of that file). Status: tested on 3 calls, 20 ranked rows (5 brief + 5 full + 10 full); the joining-fee check was done on the 15 full-format rows, which carry the fee fields.
 
 ## What's wrong
 The tool description says cards are ranked by "NET ANNUAL SAVINGS (rewards earned + lounge value + milestone benefits - joining fee - annual fee)". The numbers it returns follow a different rule: rewards + milestone + lounge - annual fee. The joining fee is never subtracted. The server's own `_format_hint` in the response says the same shorter formula, so the description and the response disagree with each other.
 
-In all 25 ranked cards across the three calls, the returned net savings equals the shorter formula exactly (to the rupee). For every card with a joining fee, it differs from the description's formula by exactly the joining fee.
+In all 15 full-format ranked cards across calls #7 and #9, the returned net savings equals the shorter formula exactly (to the rupee). For every card with a joining fee, it differs from the description's formula by exactly the joining fee.
 
 ## Worked example 1 (amazon_spends = 15000, response_format = full)
 | Tool rank | Card | Rewards | Joining fee | Annual fee charged | Tool net | Net per description | Rank per description |
@@ -47,6 +47,6 @@ Premium cards with joining fees of 5,000 to 12,000 rupees look 5,000 to 12,000 r
 - `list_cards` says total_available 258 but showing 100 with limit=100; the `bank` field is empty for 100 of the 100 cards in brief format.
 - `get_card_details` for SBI Cashback has `existing_customer_only: true`; `recommend_cards` output has no such flag, so a user can be shown a card they cannot get.
 - Eligibility fields contradict each other (SBI Cashback and BOB Cashback): `income_salaried_lpa: 3` (25,000 a month) vs `min_income_monthly: 30000` (3.6 LPA).
-- Lounge value is not annualised (one profile, tested). Input domestic_lounge_usage_quarterly = 3 (12 visits a year). The description values a domestic visit at 750, so a year is 12 x 750 = 9,000. Every card with lounge access returns lounge_value "₹2,250" (3 x 750 = one quarter) and that figure is added into the annual net savings. The category line for the same card shows 750, which is the monthly value (3 visits per quarter = 1 a month), the same monthly-labelled-as-annual problem as above. Net savings for lounge cards are understated by about 6,750 in this example.
-- Float noise is shown to users: annual_rewards_value "₹2,42,999.994", "₹1,08,000.002", milestone "₹36,800.001", annual_value "₹8,333.333".
+- Lounge value is not annualised (one profile, tested; logs/probe_calls.jsonl line 13, logged 2026-10-11 02:00 IST, flights_annual 600000, hotels_annual 300000, domestic_lounge_usage_quarterly 3). Input domestic_lounge_usage_quarterly = 3 (12 visits a year). The description values a domestic visit at 750, so a year is 12 x 750 = 9,000. Every card with lounge access returns lounge_value "₹2,250" (3 x 750 = one quarter) and that figure is added into the annual net savings. The category line for the same card shows 750, which is the monthly value (3 visits per quarter = 1 a month), the same monthly-labelled-as-annual problem as above. Net savings for lounge cards are understated by about 6,750 in this example.
+- Float noise is shown to users (same call, line 13; the 8,333.333 and 4,166.667 values are in rank 2 of that call): annual_rewards_value "₹2,42,999.994", "₹1,08,000.002", milestone "₹36,800.001", annual_value "₹8,333.333".
 - Internal or odd values leak into output: category name `new_monthly_cat_1`, `all_pharmacy` (not one of the 21 input keys), a milestone value of "₹36,800.001", card names with typos ("Swiggy Ornge HDFC Bank Credit card ", "ixigo AU credot Card").
